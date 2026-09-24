@@ -547,7 +547,16 @@ function RoundPage({ round }: { round: number }) {
           <Round6Clue />
         ) : (
           <div className="challenge-box">
-            {round === 1 ? <Round1CodeChallenge /> : (round === 3 || round === 5) ? (
+            {round === 1 ? <Round1CodeChallenge /> : round === 3 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <span className="section-kicker">THE NEXT CLUE ISN'T ON THIS SCREEN</span>
+                <h3>Discover the location.</h3>
+                <p>Take the clue beyond the page, identify the corresponding location, and submit your photo proof.</p>
+                <a href="https://docs.google.com/forms/d/e/1FAIpQLScPkd7s9zyfvNuysls2fr8y_UWkq98GidnN4sl5XYOHD5ZTww/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ textDecoration: 'none', width: 'fit-content', marginTop: '10px' }}>
+                  <Camera size={16} /> Submit Photo Proof
+                </a>
+              </div>
+            ) : round === 5 ? (
               <>
                 <span className="section-kicker">THE NEXT CLUE ISN'T ON THIS SCREEN</span>
                 <h3>Discover the location.</h3>
