@@ -121,7 +121,7 @@ function Home() {
       </section>
       <section className="rounds-section section-shell">
         <div className="rounds-heading">
-          <div><div className="section-kicker">02 / The trail</div><h2>Five ways to<br /><i>get lost.</i></h2></div>
+          <div><div className="section-kicker">02 / The trail</div><h2>Four ways to<br /><i>get lost.</i></h2></div>
           <p>One team. Three sharp minds.<br />A trail that rewards looking twice.</p>
         </div>
         <div className="round-grid">{eventConfig.rounds.map((round, index) => <RoundCard key={round.number} round={round} index={index} />)}</div>
@@ -160,7 +160,7 @@ function Stats() {
   return (
     <div className="stats-row">
       <div><strong>15</strong><span>teams enter</span></div>
-      <div><strong>05</strong><span>stages unfold</span></div>
+      <div><strong>04</strong><span>stages unfold</span></div>
       <div><strong>03</strong><span>teams remain</span></div>
     </div>
   )
@@ -170,7 +170,7 @@ function RoundCard({ round, index }: { round: typeof eventConfig.rounds[number];
   return (
     <Link to={`/round/${index + 1}`} className={`round-card round-${index + 1}`}>
       <div className="round-card-top"><span>{round.number}</span><MoveUpRight size={19} /></div>
-      <div className="round-icon">{index === 0 ? <Fingerprint /> : index === 1 ? <BookOpen /> : index === 2 ? <Mountain /> : index === 3 ? <KeyRound /> : <Sparkles />}</div>
+      <div className="round-icon">{index === 0 ? <Fingerprint /> : index === 1 ? <BookOpen /> : index === 2 ? <Mountain /> : <Sparkles />}</div>
       <div><small>{round.label}</small><h3>{round.title}</h3><p>{round.description}</p></div>
     </Link>
   )
@@ -211,7 +211,7 @@ function HowItWorks() {
         </div>
         <motion.div className="instruction-detail" key={active} initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }}>
           <div className="detail-number">{eventConfig.rounds[active].number}</div>
-          <div className="detail-icon">{active === 0 ? <Fingerprint /> : active === 1 ? <BookOpen /> : active === 2 ? <Mountain /> : active === 3 ? <KeyRound /> : <Sparkles />}</div>
+          <div className="detail-icon">{active === 0 ? <Fingerprint /> : active === 1 ? <BookOpen /> : active === 2 ? <Mountain /> : <Sparkles />}</div>
           <div className="section-kicker">{eventConfig.rounds[active].label}</div>
           <h2>{eventConfig.rounds[active].title}</h2>
           <p>{eventConfig.rounds[active].description}</p>
@@ -528,10 +528,10 @@ function Round2ArchiveChallenge() {
 function RoundPage({ round }: { round: number }) {
   const config = eventConfig.rounds[round - 1]
   return (
-    <PageIntro eyebrow={`Round ${config.number} / ${config.label}`} title={<>{config.title}<br /><i>{round === 5 ? 'starts now.' : 'the next clue.'}</i></>}>
+    <PageIntro eyebrow={`Round ${config.number} / ${config.label}`} title={<>{config.title}<br /><i>{round === 4 ? 'starts now.' : 'the next clue.'}</i></>}>
       <div className={`round-stage stage-${round}`}>
         <div className="stage-top">
-          <div className="stage-icon">{round === 1 ? <Fingerprint /> : round === 2 ? <BookOpen /> : round === 3 ? <Mountain /> : round === 4 ? <KeyRound /> : <Sparkles />}</div>
+          <div className="stage-icon">{round === 1 ? <Fingerprint /> : round === 2 ? <BookOpen /> : round === 3 ? <Mountain /> : <Sparkles />}</div>
           <div><span className="section-kicker">{config.label}</span><h2>{config.description}</h2></div>
         </div>
 

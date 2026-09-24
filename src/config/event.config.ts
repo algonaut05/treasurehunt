@@ -19,6 +19,7 @@ export const eventConfig = {
     { number: '01', title: 'Decode', label: 'The signal', description: 'Solve the first puzzle and earn the ten-digit key that opens the archive.' },
     { number: '02', title: 'Search', label: 'The archive', description: 'Enter the archive, follow the trail, and find what the pages leave unsaid.' },
     { number: '03', title: 'Discover', label: 'The location', description: 'Take the clue beyond the screen. The next answer is somewhere on campus.' },
-    { number: '04', title: 'Final quest', label: 'The last light', description: 'Five teams. One final challenge. Three names on the wall.' },
+    { number: '04', title: 'Clue', label: 'The extra clue', description: 'Enter the password to unlock a PDF clue.' },
+    { number: '05', title: 'Final quest', label: 'The last light', description: 'Five teams. One final challenge. Three names on the wall.' },
   ],
 } as const
