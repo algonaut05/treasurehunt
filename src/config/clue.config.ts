@@ -12,3 +12,11 @@ export const clueMap: Record<string, string> = {
   'K7V': `${base}clues/K7V.pdf`,
   'D4Y': `${base}clues/D4Y.pdf`,
 };
+
+export const round6ClueMap: Record<string, string> = {
+  '5831': `${base}clues/5831.pdf`,
+  '7406': `${base}clues/7406.pdf`,
+  '2194': `${base}clues/2194.pdf`,
+  '8652': `${base}clues/8652.pdf`,
+  '4317': `${base}clues/4317.pdf`,
+};

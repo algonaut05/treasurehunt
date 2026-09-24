@@ -20,6 +20,8 @@ export const eventConfig = {
     { number: '02', title: 'Search', label: 'The archive', description: 'Enter the archive, follow the trail, and find what the pages leave unsaid.' },
     { number: '03', title: 'Discover', label: 'The location', description: 'Take the clue beyond the screen. The next answer is somewhere on campus.' },
     { number: '04', title: 'Clue', label: 'The extra clue', description: 'Enter the password to unlock a PDF clue.' },
-    { number: '05', title: 'Final quest', label: 'The last light', description: 'Five teams. One final challenge. Three names on the wall.' },
+    { number: '05', title: 'Track', label: 'The second location', description: 'Follow the new clue to the next campus location.' },
+    { number: '06', title: 'Unveil', label: 'The final clue', description: 'Unlock the final PDF map with your 4-digit code.' },
+    { number: '07', title: 'Final quest', label: 'The last light', description: 'The remaining teams race to the final location.' },
   ],
 } as const

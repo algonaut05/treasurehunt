@@ -11,6 +11,7 @@ import { eventConfig } from './config/event.config'
 import { validateRound2Credentials, Round2Archive, ROUND1_VALID_CODES } from './config/round2.config'
 import { teamTable } from './config/teamTable'
 import ClueRound from './ClueRound'
+import Round6Clue from './Round6Clue'
 
 const fadeUp = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.7, ease: 'easeOut' as const } }
 
@@ -44,6 +45,8 @@ function PageRouter() {
         <Route path="/round/3"    element={<RoundPage round={3} />} />
         <Route path="/round/4"    element={<RoundPage round={4} />} />
         <Route path="/round/5"    element={<RoundPage round={5} />} />
+        <Route path="/round/6"    element={<RoundPage round={6} />} />
+        <Route path="/round/7"    element={<RoundPage round={7} />} />
         <Route path="/final"      element={<FinalPage />} />
         <Route path="/admin"      element={<Admin />} />
         <Route path="*"           element={<Home />} />
@@ -161,7 +164,7 @@ function Stats() {
   return (
     <div className="stats-row">
       <div><strong>15</strong><span>teams enter</span></div>
-      <div><strong>05</strong><span>stages unfold</span></div>
+      <div><strong>07</strong><span>stages unfold</span></div>
       <div><strong>03</strong><span>teams remain</span></div>
     </div>
   )
@@ -171,7 +174,7 @@ function RoundCard({ round, index }: { round: typeof eventConfig.rounds[number];
   return (
     <Link to={`/round/${index + 1}`} className={`round-card round-${index + 1}`}>
       <div className="round-card-top"><span>{round.number}</span><MoveUpRight size={19} /></div>
-      <div className="round-icon">{index === 0 ? <Fingerprint /> : index === 1 ? <BookOpen /> : index === 2 ? <Mountain /> : index === 3 ? <KeyRound /> : <Sparkles />}</div>
+      <div className="round-icon">{(index === 0) ? <Fingerprint /> : (index === 1 || index === 3 || index === 5) ? <KeyRound /> : (index === 2 || index === 4) ? <Mountain /> : <Sparkles />}</div>
       <div><small>{round.label}</small><h3>{round.title}</h3><p>{round.description}</p></div>
     </Link>
   )
@@ -212,7 +215,7 @@ function HowItWorks() {
         </div>
         <motion.div className="instruction-detail" key={active} initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }}>
           <div className="detail-number">{eventConfig.rounds[active].number}</div>
-          <div className="detail-icon">{active === 0 ? <Fingerprint /> : active === 1 ? <BookOpen /> : active === 2 ? <Mountain /> : active === 3 ? <KeyRound /> : <Sparkles />}</div>
+          <div className="detail-icon">{(active === 0) ? <Fingerprint /> : (active === 1 || active === 3 || active === 5) ? <KeyRound /> : (active === 2 || active === 4) ? <Mountain /> : <Sparkles />}</div>
           <div className="section-kicker">{eventConfig.rounds[active].label}</div>
           <h2>{eventConfig.rounds[active].title}</h2>
           <p>{eventConfig.rounds[active].description}</p>
@@ -529,10 +532,10 @@ function Round2ArchiveChallenge() {
 function RoundPage({ round }: { round: number }) {
   const config = eventConfig.rounds[round - 1]
   return (
-    <PageIntro eyebrow={`Round ${config.number} / ${config.label}`} title={<>{config.title}<br /><i>{round === 5 ? 'starts now.' : 'the next clue.'}</i></>}>
+    <PageIntro eyebrow={`Round ${config.number} / ${config.label}`} title={<>{config.title}<br /><i>{round === 7 ? 'starts now.' : 'the next clue.'}</i></>}>
       <div className={`round-stage stage-${round}`}>
         <div className="stage-top">
-          <div className="stage-icon">{round === 1 ? <Fingerprint /> : round === 2 ? <BookOpen /> : round === 3 ? <Mountain /> : round === 4 ? <KeyRound /> : <Sparkles />}</div>
+          <div className="stage-icon">{(round === 1) ? <Fingerprint /> : (round === 2 || round === 4 || round === 6) ? <KeyRound /> : (round === 3 || round === 5) ? <Mountain /> : <Sparkles />}</div>
           <div><span className="section-kicker">{config.label}</span><h2>{config.description}</h2></div>
         </div>
 
@@ -540,16 +543,18 @@ function RoundPage({ round }: { round: number }) {
           <Round2ArchiveChallenge />
         ) : round === 4 ? (
           <ClueRound />
+        ) : round === 6 ? (
+          <Round6Clue />
         ) : (
           <div className="challenge-box">
-            {round === 1 ? <Round1CodeChallenge /> : round === 3 ? (
+            {round === 1 ? <Round1CodeChallenge /> : (round === 3 || round === 5) ? (
               <>
                 <span className="section-kicker">THE NEXT CLUE ISN'T ON THIS SCREEN</span>
                 <h3>Discover the location.</h3>
                 <p>Take the clue beyond the page, identify the corresponding location, then verify it here.</p>
                 <div className="code-input"><input placeholder="Location name" /><button><Search size={16} /> Verify</button></div>
               </>
-            ) : round === 5 ? (
+            ) : round === 7 ? (
               <>
                 <span className="section-kicker">THE FINAL QUEST</span>
                 <h3>Five teams. One last trail.</h3>
