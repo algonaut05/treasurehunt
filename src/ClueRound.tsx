@@ -20,8 +20,10 @@ function ClueRound() {
   };
 
   return (
-    <div className="clue-round">
-      <h3>Enter clue password</h3>
+    <div className="unlock-box">
+      <KeyRound size={29} />
+      <h3>Clue Locked</h3>
+      <p>Enter your 5-character password to unlock the extra clue PDF.</p>
       <form className="credential-form" onSubmit={handleSubmit}>
         <div className="credential-field">
           <label>

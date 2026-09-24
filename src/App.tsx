@@ -10,6 +10,7 @@ import {
 import { eventConfig } from './config/event.config'
 import { validateRound2Credentials, Round2Archive, ROUND1_VALID_CODES } from './config/round2.config'
 import { teamTable } from './config/teamTable'
+import ClueRound from './ClueRound'
 
 const fadeUp = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.7, ease: 'easeOut' as const } }
 
