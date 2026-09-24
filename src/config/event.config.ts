@@ -1,0 +1,24 @@
+export const eventConfig = {
+  eventName: 'ENGQUEST 5.0',
+  organizer: 'Drushyam Photography Club',
+  eyebrow: 'The campus is the map',
+  tagline: 'The hunt begins here.',
+  description: 'A multi-stage treasure hunt built for curious minds, sharp eyes, and teams that know how to follow a thread.',
+  supportingCopy: 'Decode clues. Search the archive. Discover hidden locations. Reach the final quest.',
+  eventDate: 'DATE TO BE ANNOUNCED',
+  venue: 'VENUE TO BE ANNOUNCED',
+  contact: 'CONTACT TO BE ANNOUNCED',
+  qualificationNumbers: {
+    registered: 'ALL',
+    round1: 15,
+    round2: 10,
+    round3: 5,
+    final: 3,
+  },
+  rounds: [
+    { number: '01', title: 'Decode', label: 'The signal', description: 'Solve the first puzzle and earn the ten-digit key that opens the archive.' },
+    { number: '02', title: 'Search', label: 'The archive', description: 'Enter the archive, follow the trail, and find what the pages leave unsaid.' },
+    { number: '03', title: 'Discover', label: 'The location', description: 'Take the clue beyond the screen. The next answer is somewhere on campus.' },
+    { number: '04', title: 'Final quest', label: 'The last light', description: 'Five teams. One final challenge. Three names on the wall.' },
+  ],
+} as const
