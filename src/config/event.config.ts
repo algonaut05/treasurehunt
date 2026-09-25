@@ -1,4 +1,5 @@
 export const eventConfig = {
+  round7PhotoUploadUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSfrLeV0JAQYnifwHjaWqO4_aRSJRcHvLpY7r4uRVE0OsigWoQ/viewform?usp=publish-editor',
   eventName: 'ENGQUEST 5.0',
   organizer: 'Drushyam Photography Club',
   eyebrow: 'The campus is the map',

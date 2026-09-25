@@ -1,18 +1,25 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertCircle, KeyRound } from 'lucide-react';
 import { round6ClueMap } from './config/clue.config';
+import { recordRoundCompletion } from './teamProgress';
 
 function Round6Clue() {
   const [pw, setPw] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = pw.trim();
     if (round6ClueMap[code]) {
-      setPdfUrl(round6ClueMap[code]);
-      setError(null);
+      try {
+        await recordRoundCompletion(6);
+        setPdfUrl(round6ClueMap[code]);
+        setError(null);
+      } catch (cause) {
+        setError((cause as Error).message || 'Could not save your Round 6 completion. Please try again.');
+      }
     } else {
       setError('Invalid code – try again');
       setPdfUrl(null);
@@ -57,6 +64,9 @@ function Round6Clue() {
           <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
             Open your final map PDF
           </a>
+          <Link className="button button-primary" to="/round/7" style={{ marginTop: '14px' }}>
+            I found the clue — go to Round 7
+          </Link>
         </div>
       )}
     </div>
