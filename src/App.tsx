@@ -1,21 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   AlertCircle, ArrowDownRight, ArrowRight, ArrowUpRight,
   BookOpen, Camera, Check, Compass, Download, ExternalLink,
   Eye, Fingerprint, KeyRound, LockKeyhole, Menu, Mountain,
-  MoveUpRight, RotateCcw, Search, ShieldCheck, Sparkles, X,
+  RotateCcw, Search, ShieldCheck, Sparkles, Volume2, VolumeX, X,
 } from 'lucide-react'
 import { eventConfig } from './config/event.config'
 import { validateRound2Credentials, Round2Archive, ROUND1_VALID_CODES } from './config/round2.config'
 import { clueMap } from './config/clue.config'
 import ClueRound from './ClueRound'
 import Round6Clue from './Round6Clue'
-import { organizerApproveRound3, organizerApproveRound7, organizerLogin, organizerTeams, registerTeam, requestRound7Review, teamLogin } from './api'
+import treasureChestImage from '../assetsicons/quest-treasure-chest.png'
+import drushyamLogo from '../assetsicons/drushyamlogo.png'
+import engquestLogo from '../assetsicons/image.png'
+import winnerMusic from '../assetsicons/tunetank-winner-awards-logo-484334.mp3'
+import { getEventStatus, organizerApproveRound3, organizerApproveRound7, organizerLogin, organizerRejectRound3, organizerRejectRound7, organizerSetGameOver, organizerSetRound3SlotsFull, organizerRound3Photo, organizerRound7Photo, organizerTeams, registerTeam, requestRound3Review, requestRound7Review, teamLogin } from './api'
 import { recordRoundCompletion } from './teamProgress'
 
-type RegisteredTeam = { id: string; name: string; members: { name: string; enrollment: string }[]; progress: number; registeredAt: string; lastActivityAt?: string; round3ApprovedAt?: string | null; round4CluePassword?: string | null; round7RequestedAt?: string | null; round7ApprovedAt?: string | null }
+type RegisteredTeam = { id: string; name: string; members: { name: string; enrollment: string }[]; progress: number; registeredAt: string; lastActivityAt?: string; round3RequestedAt?: string | null; round3PhotoSubmittedAt?: string | null; round3RejectedAt?: string | null; round3SlotsFull?: boolean; round3ApprovedAt?: string | null; round3PhotoAvailable?: boolean; round4CluePassword?: string | null; round7RequestedAt?: string | null; round7PhotoSubmittedAt?: string | null; round7RejectedAt?: string | null; round7ApprovedAt?: string | null; round7PhotoAvailable?: boolean; gameOver?: boolean }
 
 const fadeUp = { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.7, ease: 'easeOut' as const } }
 
@@ -28,9 +33,48 @@ function App() {
       <AnimatePresence mode="wait">
         <Routes><Route path="*" element={<PageRouter />} /></Routes>
       </AnimatePresence>
+      <GameOverNotice />
       <Footer />
     </div>
   )
+}
+
+function GameOverNotice() {
+  const location = useLocation()
+  const [visible, setVisible] = useState(false)
+  const [countdown, setCountdown] = useState(5)
+  useEffect(() => {
+    const teamId = sessionStorage.getItem('engquest_team_id')
+    const password = sessionStorage.getItem('engquest_team_password')
+    if (sessionStorage.getItem('engquest_role') !== 'team' || !teamId || !password) { setVisible(false); return }
+    let cancelled = false
+    const checkGameStatus = async () => {
+      try {
+        const result = await teamLogin(teamId, password)
+        if (!cancelled) setVisible(Boolean(result.team.gameOver && !result.team.round7ApprovedAt))
+      } catch { if (!cancelled) setVisible(false) }
+    }
+    void checkGameStatus()
+    const interval = window.setInterval(() => void checkGameStatus(), 10000)
+    return () => { cancelled = true; window.clearInterval(interval) }
+  }, [location.pathname])
+  if (!visible) return null
+  return createPortal(<GameOverCountdown countdown={countdown} setCountdown={setCountdown} />, document.body)
+}
+
+function GameOverCountdown({ countdown, setCountdown }: { countdown: number; setCountdown: React.Dispatch<React.SetStateAction<number>> }) {
+  useEffect(() => {
+    setCountdown(5)
+    const interval = window.setInterval(() => setCountdown(value => Math.max(0, value - 1)), 1000)
+    const redirect = window.setTimeout(() => {
+      sessionStorage.removeItem('engquest_role')
+      sessionStorage.removeItem('engquest_team_id')
+      sessionStorage.removeItem('engquest_team_password')
+      window.location.assign('/#winners')
+    }, 5000)
+    return () => { window.clearInterval(interval); window.clearTimeout(redirect) }
+  }, [setCountdown])
+  return <div className="game-over-overlay" role="dialog" aria-modal="true" aria-labelledby="game-over-title"><div className="game-over-dialog"><span className="section-kicker">ENGQUEST 5.0</span><h2 id="game-over-title">Game over.</h2><p>Thanks for participating. The hunt has ended.</p><p className="game-over-countdown" aria-live="polite">Opening the winners page in <strong>{countdown}</strong>…</p><button className="button button-primary" onClick={() => { sessionStorage.removeItem('engquest_role'); sessionStorage.removeItem('engquest_team_id'); sessionStorage.removeItem('engquest_team_password'); window.location.assign('/#winners') }}>Go to winners page now <ArrowRight size={16} /></button></div></div>
 }
 
 function PageRouter() {
@@ -108,7 +152,7 @@ function Header() {
   return (
     <header className="site-header">
       <Link to={homeTarget} className="brand" aria-label={role ? `${role === 'team' ? 'Team' : 'Organiser'} portal` : 'Home'} onClick={() => setOpen(false)}>
-        <span className="brand-mark"><Compass size={17} /></span>
+        <img className="brand-logo" src={engquestLogo} alt="" />
         <span>ENGQUEST <em>5.0</em></span>
       </Link>
       <nav className={open ? 'main-nav open' : 'main-nav'}>
@@ -127,8 +171,9 @@ function Header() {
 function Footer() {
   return (
     <footer className="site-footer section-shell">
-      <div className="brand"><span className="brand-mark"><Compass size={17} /></span><span>ENGQUEST <em>5.0</em></span></div>
+      <div className="brand"><img className="brand-logo" src={engquestLogo} alt="" /><span>ENGQUEST <em>5.0</em></span></div>
       <span>© {new Date().getFullYear()} {eventConfig.organizer}</span>
+      <img className="drushyam-logo" src={drushyamLogo} alt="Drushyam Photography and Film Society" />
       <a href="#top" aria-label="Back to top"><ArrowUpRight size={17} /></a>
       <Camera size={17} />
     </footer>
@@ -138,6 +183,29 @@ function Footer() {
 // ─── Home ─────────────────────────────────────────────────────────────────────
 
 function Home() {
+  const [eventStatus, setEventStatus] = useState<{ gameOver: boolean; winners: { id: string; name: string; approvedAt: string }[] } | null>(null)
+  const winnerAudioRef = useRef<HTMLAudioElement>(null)
+  const [musicPlaying, setMusicPlaying] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    const refreshEventStatus = async () => {
+      try {
+        const status = await getEventStatus()
+        if (!cancelled) setEventStatus(status)
+      } catch { /* Keep the public home page available if the API is offline. */ }
+    }
+    void refreshEventStatus()
+    const interval = window.setInterval(() => void refreshEventStatus(), 15000)
+    return () => { cancelled = true; window.clearInterval(interval) }
+  }, [])
+  useEffect(() => {
+    if (!eventStatus?.gameOver || window.location.hash !== '#winners') return
+    window.requestAnimationFrame(() => document.getElementById('winners')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }, [eventStatus])
+  useEffect(() => {
+    if (!eventStatus?.gameOver || !winnerAudioRef.current) return
+    void winnerAudioRef.current.play().then(() => setMusicPlaying(true)).catch(() => setMusicPlaying(false))
+  }, [eventStatus?.gameOver])
   return (
     <>
       <section className="hero section-shell">
@@ -157,6 +225,14 @@ function Home() {
           <span className="scroll-cue"><span>Scroll to explore</span><ArrowDownRight size={17} /></span>
         </div>
       </section>
+      {eventStatus?.gameOver && <section id="winners" className="winner-announcement section-shell" aria-labelledby="winner-announcement-title">
+        <span className="section-kicker">ENGQUEST 5.0 / FINAL RESULTS</span>
+        <h2 id="winner-announcement-title">Congratulations<br /><i>to our winners.</i></h2>
+        {eventStatus.winners.length ? <div className="winner-announcement-teams">{eventStatus.winners.map(team => <div className="winner-announcement-team" key={team.id}><Sparkles size={22} /><strong>{team.name}</strong><span>{team.id}</span></div>)}</div> : <p className="winner-announcement-pending">The final results are being confirmed.</p>}
+        <p className="winner-announcement-thanks">Thank you to every team who joined the hunt, followed the clues, and made ENGQUEST 5.0 memorable.</p>
+        <audio ref={winnerAudioRef} src={winnerMusic} preload="auto" onEnded={() => setMusicPlaying(false)} />
+        <button className="button button-dark winner-music-toggle" type="button" onClick={() => { const audio = winnerAudioRef.current; if (!audio) return; if (audio.paused) void audio.play().then(() => setMusicPlaying(true)).catch(() => setMusicPlaying(false)); else { audio.pause(); setMusicPlaying(false) } }}>{musicPlaying ? <><VolumeX size={16} /> Pause winners music</> : <><Volume2 size={16} /> Play winners music</>}</button>
+      </section>}
       <section className="manifesto section-shell">
         <div className="section-kicker">01 / The brief</div>
         <div className="manifesto-grid">
@@ -173,7 +249,7 @@ function Home() {
           <div><div className="section-kicker">02 / The trail</div><h2>Seven stages to<br /><i>get lost.</i></h2></div>
           <p>One team. Three sharp minds.<br />A trail that rewards looking twice.</p>
         </div>
-        <div className="round-grid">{eventConfig.rounds.map((round, index) => <RoundCard key={round.number} round={round} index={index} />)}</div>
+        <QuestProgress treasureChestImage={treasureChestImage} />
       </section>
       <section className="closing-cta section-shell">
         <div className="stamp"><Sparkles size={17} /> EST. 2025</div>
@@ -212,17 +288,6 @@ function Stats() {
       <div><strong>07</strong><span>stages unfold</span></div>
       <div><strong>03</strong><span>teams remain</span></div>
     </div>
-  )
-}
-
-function RoundCard({ round, index }: { round: typeof eventConfig.rounds[number]; index: number }) {
-  const clueRound = (index + 1) % 2 === 0
-  return (
-    <Link to={`/round/${index + 1}`} className={`round-card round-${index + 1} ${clueRound ? 'round-kind-clue' : 'round-kind-main'}`}>
-      <div className="round-card-top"><span>{round.number}</span><span className="round-kind-label">{clueRound ? 'CLUE ROUND' : 'MAIN ROUND'}</span><MoveUpRight size={19} /></div>
-      <div className="round-icon">{(index === 0) ? <Fingerprint /> : (index === 1 || index === 3 || index === 5) ? <KeyRound /> : (index === 2 || index === 4) ? <Mountain /> : <Sparkles />}</div>
-      <div><small>{round.label}</small><h3>{round.title}</h3><p>{round.description}</p></div>
-    </Link>
   )
 }
 
@@ -413,12 +478,62 @@ function Dashboard() {
   return (
     <PageIntro eyebrow={`TEAM ${team.id}`} title={<>Welcome,<br /><i>{team.name}.</i></>}>
       <div className="team-rounds-heading">
-        <span className="section-kicker">CHOOSE A ROUND</span>
+        <span className="section-kicker">YOUR QUEST MAP</span>
         <button className="button button-dark" onClick={() => { sessionStorage.removeItem('engquest_role'); sessionStorage.removeItem('engquest_team_id'); sessionStorage.removeItem('engquest_team_password'); navigate('/') }}>Log out <ArrowUpRight size={16} /></button>
       </div>
-      <div className="round-grid team-round-grid">{eventConfig.rounds.map((round, index) => <RoundCard key={round.number} round={round} index={index} />)}</div>
+      <QuestProgress team={team} treasureChestImage={treasureChestImage} />
     </PageIntro>
   )
+}
+
+function QuestProgress({ team, treasureChestImage }: { team?: RegisteredTeam; treasureChestImage: string }) {
+  const progress = Math.min(team?.progress || 0, eventConfig.rounds.length)
+  const progressPercent = Math.round((progress / eventConfig.rounds.length) * 100)
+  const statusForRound = (roundNumber: number) => {
+    if (roundNumber <= progress) return 'CLEARED'
+    if (roundNumber === 3 && progress === 2) return 'ORGANISER REVIEW'
+    if (roundNumber === 7 && team?.round7RequestedAt && !team.round7ApprovedAt) return 'ORGANISER REVIEW'
+    if (roundNumber === progress + 1) return team ? 'CURRENT STAGE' : 'START HERE'
+    return 'UP AHEAD'
+  }
+
+  return <section className={`quest-progress-board${team ? '' : ' quest-public-board'}`} aria-label="Quest progress">
+    <div className={`quest-progress-overview${team ? '' : ' quest-public-overview'}`}>
+      {team && <div>
+        <span className="section-kicker">YOUR QUEST PROGRESS</span>
+        <div className="quest-progress-count"><strong>{String(progress).padStart(2, '0')}</strong><span> / 07 stages cleared</span></div>
+      </div>}
+      <div className="quest-category-counts" aria-label="4 challenges and 3 clues">
+        <span className="challenge-count"><i /> 04 <small>CHALLENGES</small></span>
+        <span className="clue-count"><i /> 03 <small>CLUES</small></span>
+      </div>
+    </div>
+    {team && <div className="quest-progress-meter" role="progressbar" aria-label="Quest completion" aria-valuemin={0} aria-valuemax={7} aria-valuenow={progress}>
+      <span style={{ width: `${progressPercent}%` }} />
+    </div>}
+    <div className="quest-route">
+    <div className="quest-route-rail" aria-hidden="true"><span style={{ height: `${progressPercent}%` }} /></div>
+    <ol className="quest-route-list">
+      {eventConfig.rounds.map((round, index) => {
+        const roundNumber = index + 1
+        const isClue = roundNumber % 2 === 0
+        const status = statusForRound(roundNumber)
+        const completed = roundNumber <= progress
+        return <li className={`quest-route-stop ${isClue ? 'clue-stop' : 'challenge-stop'} ${completed ? 'is-cleared' : ''} ${status === 'CURRENT STAGE' ? 'is-current' : ''} ${status === 'ORGANISER REVIEW' ? 'is-review' : ''}`} key={round.number}>
+          <span className="quest-route-marker" aria-hidden="true">{completed ? <Check size={15} /> : String(roundNumber).padStart(2, '0')}</span>
+          <Link className="quest-route-card" to={`/round/${roundNumber}`} aria-label={`Open ${isClue ? 'clue' : 'challenge'} ${roundNumber}: ${round.title}`}>
+            <div className="quest-card-kicker"><span>{round.number}</span><small>{isClue ? 'CLUE' : 'CHALLENGE'}</small></div>
+            <div className="quest-card-main">
+              <div><h3>{round.title}</h3><p>{round.description}</p></div>
+              {roundNumber === 7 && <img className="quest-chest-art" src={treasureChestImage} alt="Treasure chest" loading="lazy" decoding="async" />}
+            </div>
+            <div className="quest-card-footer"><span>{status}</span><ArrowRight size={16} /></div>
+          </Link>
+        </li>
+      })}
+    </ol>
+    </div>
+  </section>
 }
 
 // ─── Round 2: Dual-Credential PDF Unlock ─────────────────────────────────────
@@ -632,13 +747,7 @@ function RoundPage({ round }: { round: number }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 <span className="section-kicker">THE NEXT CLUE ISN'T ON THIS SCREEN</span>
                 <h3>Discover the location.</h3>
-                <p>Find the location and submit your photo proof. Organisers will review and update your result.</p>
-                <a href="https://docs.google.com/forms/d/e/1FAIpQLScPkd7s9zyfvNuysls2fr8y_UWkq98GidnN4sl5XYOHD5ZTww/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" className="button button-primary" style={{ textDecoration: 'none', width: 'fit-content', marginTop: '10px' }}>
-                  <Camera size={16} /> Submit Photo Proof
-                </a>
-                <Link className="button button-primary" to="/round/4" style={{ width: 'fit-content', marginTop: '10px' }}>
-                  Continue to Round 4 <ArrowRight size={17} />
-                </Link>
+                <p>Find the correct location and submit your photo proof, then request an organiser review below. You can continue after approval.</p>
                 <Round3Status />
               </div>
             ) : round === 5 ? (
@@ -656,8 +765,14 @@ function RoundPage({ round }: { round: number }) {
 function Round3Status() {
   const [approvedAt, setApprovedAt] = useState<string | null>(null)
   const [cluePassword, setCluePassword] = useState<string | null>(null)
+  const [requestedAt, setRequestedAt] = useState<string | null>(null)
+  const [rejectedAt, setRejectedAt] = useState<string | null>(null)
+  const [slotsFull, setSlotsFull] = useState(false)
   const [statusError, setStatusError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [requesting, setRequesting] = useState(false)
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState('')
   const [refreshToken, setRefreshToken] = useState(0)
   useEffect(() => {
     const teamId = sessionStorage.getItem('engquest_team_id')
@@ -671,6 +786,9 @@ function Round3Status() {
         if (!cancelled) {
           setApprovedAt(result.team.round3ApprovedAt || null)
           setCluePassword(result.team.round4CluePassword || null)
+          setRequestedAt(result.team.round3RequestedAt || null)
+          setRejectedAt(result.team.round3RejectedAt || null)
+          setSlotsFull(Boolean(result.team.round3SlotsFull))
           setStatusError('')
         }
       } catch (cause) {
@@ -684,24 +802,60 @@ function Round3Status() {
     return () => { cancelled = true; window.clearInterval(interval) }
   }, [refreshToken])
 
+  const submitReviewRequest = async () => {
+    const teamId = sessionStorage.getItem('engquest_team_id')
+    const password = sessionStorage.getItem('engquest_team_password')
+    if (!teamId || !password) { setStatusError('Team login is required to request review.'); return }
+    if (!photo) { setStatusError('Choose a location photo before requesting review.'); return }
+    if (!photo.type.startsWith('image/')) { setStatusError('Choose an image file.'); return }
+    if (photo.size > 20 * 1024 * 1024) { setStatusError('Photo must be 20 MB or smaller.'); return }
+    setRequesting(true)
+    setStatusError('')
+    try {
+      const result = await requestRound3Review(teamId, password, photo)
+      setRequestedAt(result.requestedAt)
+      setRejectedAt(null)
+      setPhoto(null)
+      setPhotoPreview('')
+    } catch (cause) {
+      setStatusError((cause as Error).message || 'Could not request Round 3 review.')
+    } finally {
+      setRequesting(false)
+    }
+  }
+
   const refreshButton = <button type="button" className="button button-dark" aria-label="Refresh Round 3 approval status" onClick={() => { setRefreshing(true); setRefreshToken(value => value + 1) }} disabled={refreshing}><RotateCcw size={15} /> {refreshing ? 'Checking…' : 'Refresh status'}</button>
+  if (!approvedAt && slotsFull) return <div role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, marginTop: '8px', flexWrap: 'wrap' }}><strong>You’re eliminated. The 10 slots for the next round are full.</strong>{refreshButton}</div>
   if (!approvedAt) return <div role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, marginTop: '8px', flexWrap: 'wrap' }}>
-    <p className="form-help" style={{ margin: 0 }}>{statusError || 'Your Round 3 result is awaiting organiser review.'}</p>{refreshButton}
+    <div style={{ flex: '1 1 260px' }}>
+      <p className="form-help" style={{ margin: 0 }}>{statusError || (rejectedAt ? 'Your location was not approved. Find the correct location, submit a new photo proof, then request another review.' : requestedAt ? 'Your Round 3 review is waiting for the organiser.' : 'Find the correct location and submit your photo proof, then request an organiser review.')}</p>
+      {(!requestedAt || rejectedAt) && <label className="round3-photo-upload"><span>{rejectedAt ? 'Upload a new location photo' : 'Upload location photo'} <small>JPG, PNG, or WEBP · up to 20 MB</small></span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { const selected = event.target.files?.[0] || null; setPhoto(selected); setPhotoPreview(selected ? URL.createObjectURL(selected) : ''); setStatusError('') }} /></label>}
+      {photoPreview && (!requestedAt || rejectedAt) && <img className="round3-photo-preview" src={photoPreview} alt="Selected location photo preview" />}
+    </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {(!requestedAt || rejectedAt) && <button type="button" className="button button-primary" onClick={() => void submitReviewRequest()} disabled={requesting || !photo}>{requesting ? 'Sending…' : rejectedAt ? 'Submit photo & request review' : 'Submit photo & request review'} <ArrowRight size={15} /></button>}
+      {refreshButton}
+    </div>
   </div>
   return <div role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '14px 16px', border: '1px solid #aab2a4', marginTop: '8px', flexWrap: 'wrap' }}>
     <span className="section-kicker">ROUND 3 RESULT</span><strong style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: '#607b57' }}><Check size={16} /> APPROVED</strong>
-    <span>Round 4 clue password: <strong style={{ fontFamily: 'DM Mono, monospace', letterSpacing: '.15em' }}>{cluePassword || 'Awaiting organiser password'}</strong></span>{refreshButton}
+    <span>Round 4 clue password: <strong style={{ fontFamily: 'DM Mono, monospace', letterSpacing: '.15em' }}>{cluePassword || 'Awaiting organiser password'}</strong></span><Link className="button button-primary" to="/round/4">Continue to Round 4 <ArrowRight size={16} /></Link>{refreshButton}
   </div>
 }
 
 function Round7Challenge() {
+  const celebrationRef = useRef<HTMLDivElement>(null)
+  const hasShownCelebration = useRef(false)
   const [requestedAt, setRequestedAt] = useState<string | null>(null)
+  const [rejectedAt, setRejectedAt] = useState<string | null>(null)
   const [approvedAt, setApprovedAt] = useState<string | null>(null)
+  const [showCelebration, setShowCelebration] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
-  const photoUploadUrl = eventConfig.round7PhotoUploadUrl
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState('')
 
   useEffect(() => {
     const teamId = sessionStorage.getItem('engquest_team_id')
@@ -714,7 +868,13 @@ function Round7Challenge() {
         const result = await teamLogin(teamId, password)
         if (!cancelled) {
           setRequestedAt(result.team.round7RequestedAt || null)
-          setApprovedAt(result.team.round7ApprovedAt || null)
+          setRejectedAt(result.team.round7RejectedAt || null)
+          const approval = result.team.round7ApprovedAt || null
+          setApprovedAt(approval)
+          if (approval && !hasShownCelebration.current) {
+            hasShownCelebration.current = true
+            setShowCelebration(true)
+          }
           setError('')
         }
       } catch (cause) {
@@ -728,15 +888,50 @@ function Round7Challenge() {
     return () => { cancelled = true; window.clearInterval(interval) }
   }, [refreshToken])
 
+  useEffect(() => {
+    if (!showCelebration || !celebrationRef.current) return
+    let cancelled = false
+    let animation: import('lottie-web').AnimationItem | undefined
+    let timer: number | undefined
+    const dismiss = () => setShowCelebration(false)
+    void Promise.all([
+      import('lottie-web'),
+      import('../assetsicons/Chinese treasure chest open and shine.json'),
+    ]).then(([lottieModule, animationModule]) => {
+      if (cancelled || !celebrationRef.current) return
+      const loadedAnimation = lottieModule.default.loadAnimation({
+        container: celebrationRef.current,
+        renderer: 'svg',
+        loop: false,
+        autoplay: true,
+        animationData: animationModule.default,
+      })
+      animation = loadedAnimation
+      loadedAnimation.addEventListener('complete', dismiss)
+      timer = window.setTimeout(dismiss, 4200)
+    }).catch(() => setShowCelebration(false))
+    return () => {
+      cancelled = true
+      if (timer !== undefined) window.clearTimeout(timer)
+      animation?.destroy()
+    }
+  }, [showCelebration])
+
   const submitForReview = async () => {
     const teamId = sessionStorage.getItem('engquest_team_id')
     const password = sessionStorage.getItem('engquest_team_password')
     if (!teamId || !password) { setError('Team login is required to request approval.'); return }
+    if (!photo) { setError('Choose a treasure photo before requesting review.'); return }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.type)) { setError('Choose a JPG, PNG, or WEBP photo.'); return }
+    if (photo.size > 20 * 1024 * 1024) { setError('Photo must be 20 MB or smaller.'); return }
     setSaving(true)
     setError('')
     try {
-      const result = await requestRound7Review(teamId, password)
+      const result = await requestRound7Review(teamId, password, photo)
       setRequestedAt(result.requestedAt)
+      setRejectedAt(null)
+      setPhoto(null)
+      setPhotoPreview('')
     } catch (cause) {
       setError((cause as Error).message || 'Could not request final-round approval.')
     } finally {
@@ -746,21 +941,28 @@ function Round7Challenge() {
 
   const refreshButton = <button type="button" className="button button-dark" aria-label="Refresh final-round approval status" onClick={() => { setRefreshing(true); setRefreshToken(value => value + 1) }} disabled={refreshing}><RotateCcw size={15} /> {refreshing ? 'Checking…' : 'Refresh status'}</button>
 
-  if (approvedAt) return <div className="final-panel winner-panel" role="status">
-    <Sparkles size={31} />
-    <span className="section-kicker">FINAL ROUND / APPROVED</span>
-    <h2>You found<br /><i>the treasure.</i></h2>
-    <p>You’re the winner! The organisers approved your final-round photo.</p>
-    {refreshButton}
-  </div>
+  if (approvedAt) return <>
+    <div className="final-panel winner-panel" role="status">
+      <Sparkles size={31} />
+      <span className="section-kicker">FINAL ROUND / APPROVED</span>
+      <h2>You found<br /><i>the treasure.</i></h2>
+      <p>You’re the winner! The organisers approved your final-round photo.</p>
+      <img className="quest-chest-art winner-treasure-chest" src={treasureChestImage} alt="" />
+      <div className="winner-refresh">{refreshButton}</div>
+    </div>
+    {showCelebration && createPortal(<div className="treasure-celebration" role="presentation"><div className="treasure-celebration-animation" ref={celebrationRef} /></div>, document.body)}
+  </>
 
   return <div className="challenge-box final-round-challenge">
     <span className="section-kicker">THE FINAL QUEST</span>
     <h3>Found the treasure?</h3>
-    <p>Upload a photo of your team with the treasure, then request organiser approval. Your result will appear here after review.</p>
-    {photoUploadUrl ? <a className="button button-primary" href={photoUploadUrl} target="_blank" rel="noreferrer"><Camera size={16} /> Upload treasure photo <ExternalLink size={15} /></a> : <button className="button button-primary" type="button" disabled>Photo upload link coming soon</button>}
-    {requestedAt ? <p className="form-help" role="status">Photo review requested. Waiting for organiser approval.</p> : <button className="button button-light" type="button" style={{ marginTop: 12 }} disabled={!photoUploadUrl || saving} onClick={() => void submitForReview()}>{saving ? 'Sending request…' : 'Request organiser approval'} <ArrowRight size={16} /></button>}
-    {refreshButton}
+    <p>{rejectedAt ? 'The organiser could not approve this treasure photo. Find the right treasure, upload a new photo, and send it for review again.' : 'Upload a photo of your team with the treasure, then request organiser approval. Your result will appear here after review.'}</p>
+    {requestedAt ? <p className="form-help" role="status">Photo review requested. Waiting for organiser approval.</p> : <>
+      <label className="round3-photo-upload"><span>{rejectedAt ? 'Upload a new treasure photo' : 'Upload treasure photo'} <small>JPG, PNG, or WEBP · up to 20 MB</small></span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { const selected = event.target.files?.[0] || null; setPhoto(selected); setPhotoPreview(selected ? URL.createObjectURL(selected) : ''); setError('') }} /></label>
+      {photoPreview && <img className="round3-photo-preview" src={photoPreview} alt="Selected final-round treasure photo preview" />}
+      <button className="button button-primary" type="button" style={{ marginTop: 12 }} disabled={!photo || saving} onClick={() => void submitForReview()}>{saving ? 'Sending request…' : 'Submit photo & request review'} <ArrowRight size={16} /></button>
+    </>}
+    <div style={{ marginTop: 12 }}>{refreshButton}</div>
     {error && <div className="auth-error"><AlertCircle size={18} />{error}</div>}
   </div>
 }
@@ -846,14 +1048,15 @@ function Admin() {
       </div>
       {loadError && <div className="auth-error"><AlertCircle size={18} />{loadError}</div>}
       <div className="admin-table">
-        <div className="table-head"><span>TEAM</span><span>ROUND</span><span>STATUS</span><span>LAST ACTIVITY</span><span /></div>
+        <div className="table-head team-progress-head"><span>TEAM</span><span>ROUND</span><span>STATUS</span><span>ROUND 3 PHOTO SUBMITTED</span><span>LAST ACTIVITY</span><span /></div>
         {visibleTeams.map((team) => (
-          <div className="table-row" key={team.id}>
+          <div className="table-row team-progress-row" key={team.id}>
             <strong>{team.name}<small style={{ display: 'block' }}>{team.id} · {team.members.map(member => member.name).join(', ')}</small></strong>
             <span>{team.progress ? `${team.progress % 2 === 0 ? 'Clue' : 'Main'} ${String(team.progress).padStart(2, '0')} / ${eventConfig.rounds[team.progress - 1]?.title || 'Round'}` : 'Registration'}</span>
             <span className="table-status">
               {team.round7ApprovedAt ? 'Winner approved' : team.round7RequestedAt ? 'Final photo review pending' : team.progress === 2 ? 'Round 3 review pending' : team.progress === 3 ? 'Round 3 approved' : team.progress ? 'In progress' : 'Registered'}
             </span>
+            <span>{(team.round3PhotoSubmittedAt || team.round3RequestedAt) ? new Date(team.round3PhotoSubmittedAt || team.round3RequestedAt!).toLocaleString() : '—'}</span>
             <span>{new Date(team.lastActivityAt || team.registeredAt).toLocaleString()}</span>
             <span aria-label={`${team.name} details`}><Eye size={17} /></span>
           </div>
@@ -866,14 +1069,45 @@ function Admin() {
 
 function AdminRound3() {
   const [teams, setTeams] = useState<RegisteredTeam[]>([])
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
+  const photoUrlsRef = useRef<Record<string, string>>({})
+  const photoRequestKeys = useRef<Record<string, string>>({})
   const [cluePasswords, setCluePasswords] = useState<Record<string, string>>({})
   const [loadError, setLoadError] = useState('')
   const [approvingTeamId, setApprovingTeamId] = useState('')
+  const [slotsFull, setSlotsFull] = useState(false)
   const loadTeams = async () => {
     try {
       const result = await organizerTeams(sessionStorage.getItem('engquest_admin_username') || '', sessionStorage.getItem('engquest_admin_password') || '')
       setTeams(result.teams)
+      setSlotsFull(Boolean(result.round3SlotsFull))
       setLoadError('')
+      const pending = result.teams.filter(team => team.round3RequestedAt && !team.round3RejectedAt && !team.round3ApprovedAt && team.round3PhotoAvailable)
+      const pendingIds = new Set(pending.map(team => team.id))
+      for (const [teamId, url] of Object.entries(photoUrlsRef.current)) {
+        if (!pendingIds.has(teamId)) {
+          URL.revokeObjectURL(url)
+          delete photoUrlsRef.current[teamId]
+          delete photoRequestKeys.current[teamId]
+        }
+      }
+      setPhotoUrls({ ...photoUrlsRef.current })
+      const username = sessionStorage.getItem('engquest_admin_username') || ''
+      const password = sessionStorage.getItem('engquest_admin_password') || ''
+      await Promise.all(pending.map(async team => {
+        const requestKey = `${team.round3RequestedAt}:${team.lastActivityAt}`
+        if (photoRequestKeys.current[team.id] === requestKey && photoUrlsRef.current[team.id]) return
+        try {
+          const blob = await organizerRound3Photo(team.id, username, password)
+          const oldUrl = photoUrlsRef.current[team.id]
+          if (oldUrl) URL.revokeObjectURL(oldUrl)
+          photoUrlsRef.current[team.id] = URL.createObjectURL(blob)
+          photoRequestKeys.current[team.id] = requestKey
+          setPhotoUrls({ ...photoUrlsRef.current })
+        } catch (cause) {
+          setLoadError((cause as Error).message || `Could not load ${team.name}'s location photo.`)
+        }
+      }))
     } catch (cause) {
       setLoadError((cause as Error).message || 'Could not load teams.')
     }
@@ -898,19 +1132,49 @@ function AdminRound3() {
       setApprovingTeamId('')
     }
   }
+  const rejectRound3 = async (teamId: string) => {
+    setApprovingTeamId(teamId)
+    setLoadError('')
+    try {
+      await organizerRejectRound3(teamId, sessionStorage.getItem('engquest_admin_username') || '', sessionStorage.getItem('engquest_admin_password') || '')
+      await loadTeams()
+    } catch (cause) {
+      setLoadError((cause as Error).message || 'Could not return the team to Round 3.')
+    } finally {
+      setApprovingTeamId('')
+    }
+  }
+  const toggleSlotsFull = async () => {
+    const nextValue = !slotsFull
+    setApprovingTeamId('slots')
+    setLoadError('')
+    try {
+      const result = await organizerSetRound3SlotsFull(nextValue, sessionStorage.getItem('engquest_admin_username') || '', sessionStorage.getItem('engquest_admin_password') || '')
+      setSlotsFull(result.full)
+    } catch (cause) {
+      setLoadError((cause as Error).message || 'Could not update next-round slot status.')
+    } finally {
+      setApprovingTeamId('')
+    }
+  }
   useEffect(() => {
     if (sessionStorage.getItem('engquest_role') !== 'admin') return
     void loadTeams()
     const interval = window.setInterval(() => void loadTeams(), 15000)
-    return () => window.clearInterval(interval)
+    return () => {
+      window.clearInterval(interval)
+      Object.values(photoUrlsRef.current).forEach(URL.revokeObjectURL)
+      photoUrlsRef.current = {}
+    }
   }, [])
   if (sessionStorage.getItem('engquest_role') !== 'admin') return <PageIntro eyebrow="Organiser login required" title={<>The control room<br /><i>is restricted.</i></>}><Link className="button button-primary" to="/login?organiser=1">Organiser login <ArrowRight size={17} /></Link></PageIntro>
-  const reviewTeams = teams.filter(team => team.progress >= 2)
+  const reviewTeams = teams.filter(team => team.progress === 2 && !team.round3ApprovedAt && !team.round3RejectedAt)
   return (
     <PageIntro eyebrow="Organiser / Round 3" title={<>Location<br /><i>approvals.</i></>}>
       <div className="admin-bar">
         <div><span className="section-kicker">PHOTO PROOF REVIEW</span><h2>Round 3 results</h2></div>
         <div className="admin-tools">
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}><span>{slotsFull ? 'Next-round slots full' : 'Next-round slots open'}</span><button type="button" role="switch" aria-checked={slotsFull} aria-label="Toggle whether the 10 next-round slots are full" disabled={approvingTeamId === 'slots'} onClick={() => void toggleSlotsFull()} style={{ width: 48, height: 27, border: 0, borderRadius: 99, padding: 3, background: slotsFull ? '#a5b85f' : '#718073', cursor: 'pointer' }}><span style={{ display: 'block', width: 21, height: 21, borderRadius: '50%', background: '#fffdf1', transform: slotsFull ? 'translateX(21px)' : 'translateX(0)', transition: 'transform .18s' }} /></button></div>
           <Link className="button button-dark" to="/admin">Team progress</Link>
           <Link className="button button-dark" to="/admin/round7">Final round approvals</Link>
           <button className="button button-dark" onClick={() => { sessionStorage.removeItem('engquest_role'); sessionStorage.removeItem('engquest_admin_username'); sessionStorage.removeItem('engquest_admin_password'); window.location.assign('/') }}>Log out</button>
@@ -919,17 +1183,16 @@ function AdminRound3() {
       {loadError && <div className="auth-error"><AlertCircle size={18} />{loadError}</div>}
       <div className="admin-table">
         {reviewTeams.map(team => {
-          const approved = Boolean(team.round3ApprovedAt) || team.progress >= 3
-          const passwordAssigned = Boolean(team.round4CluePassword)
-          return <div className="table-row" key={team.id}>
-            <strong>{team.name}</strong>
-            {approved && passwordAssigned ? <span className="table-status"><Check size={14} /> Approved · Password: <strong style={{ marginLeft: 5, fontFamily: 'DM Mono, monospace' }}>{team.round4CluePassword}</strong></span> : <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          return <div className="table-row round3-review-row" key={team.id}>
+            <strong>{team.name}<small style={{ display: 'block' }}>{team.id}{team.round3RequestedAt ? ` · Review requested ${new Date(team.round3RequestedAt).toLocaleString()}` : ' · Awaiting team review request'}</small>{team.round3PhotoAvailable && photoUrls[team.id] ? <a href={photoUrls[team.id]} target="_blank" rel="noopener noreferrer"><img className="round3-review-photo" src={photoUrls[team.id]} alt={`${team.name} Round 3 location proof`} /></a> : team.round3RequestedAt ? <small>Loading location photo…</small> : null}</strong>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input aria-label={`Three-character Round 4 password for ${team.name}`} value={cluePasswords[team.id] || ''} maxLength={3} minLength={3} pattern="[A-Za-z0-9]{3}" placeholder="3-char password" onChange={event => { setCluePasswords(previous => ({ ...previous, [team.id]: event.target.value.toUpperCase() })); setLoadError('') }} />
-              <button type="button" className="button button-dark" disabled={approvingTeamId === team.id} onClick={() => void approveRound3(team.id)}>{approvingTeamId === team.id ? 'Saving…' : approved ? 'Save password' : 'Approve & send'}</button>
-            </div>}
+              <button type="button" className="button button-dark" disabled={approvingTeamId === team.id} onClick={() => void approveRound3(team.id)}>{approvingTeamId === team.id ? 'Saving…' : 'Approve & send'}</button>
+              <button type="button" className="button button-light" disabled={approvingTeamId === team.id} onClick={() => void rejectRound3(team.id)}>{approvingTeamId === team.id ? 'Saving…' : 'Not approve'}</button>
+            </div>
           </div>
         })}
-        {!reviewTeams.length && <p className="form-help" style={{ padding: 20 }}>Teams will appear here after completing Round 2.</p>}
+        {!reviewTeams.length && <p className="form-help" style={{ padding: 20 }}>Teams who complete Round 2 will appear here for location review. After a rejection, they return here when they submit a new review request.</p>}
       </div>
     </PageIntro>
   )
@@ -937,13 +1200,43 @@ function AdminRound3() {
 
 function AdminRound7() {
   const [teams, setTeams] = useState<RegisteredTeam[]>([])
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
+  const photoUrlsRef = useRef<Record<string, string>>({})
+  const photoRequestKeys = useRef<Record<string, string>>({})
   const [loadError, setLoadError] = useState('')
   const [approvingTeamId, setApprovingTeamId] = useState('')
+  const [gameOver, setGameOver] = useState(false)
   const loadTeams = async () => {
     try {
       const result = await organizerTeams(sessionStorage.getItem('engquest_admin_username') || '', sessionStorage.getItem('engquest_admin_password') || '')
       setTeams(result.teams)
+      setGameOver(Boolean(result.gameOver))
       setLoadError('')
+      const pending = result.teams.filter(team => (team.round7RequestedAt || team.round7ApprovedAt) && team.round7PhotoAvailable)
+      const pendingIds = new Set(pending.map(team => team.id))
+      for (const [teamId, url] of Object.entries(photoUrlsRef.current)) {
+        if (!pendingIds.has(teamId)) {
+          URL.revokeObjectURL(url)
+          delete photoUrlsRef.current[teamId]
+          delete photoRequestKeys.current[teamId]
+        }
+      }
+      setPhotoUrls({ ...photoUrlsRef.current })
+      const username = sessionStorage.getItem('engquest_admin_username') || ''
+      const password = sessionStorage.getItem('engquest_admin_password') || ''
+      await Promise.all(pending.map(async team => {
+        const requestKey = `${team.round7RequestedAt}:${team.round7PhotoSubmittedAt}`
+        if (photoRequestKeys.current[team.id] === requestKey && photoUrlsRef.current[team.id]) return
+        try {
+          const blob = await organizerRound7Photo(team.id, username, password)
+          if (photoUrlsRef.current[team.id]) URL.revokeObjectURL(photoUrlsRef.current[team.id])
+          photoUrlsRef.current[team.id] = URL.createObjectURL(blob)
+          photoRequestKeys.current[team.id] = requestKey
+          setPhotoUrls({ ...photoUrlsRef.current })
+        } catch (cause) {
+          setLoadError((cause as Error).message || `Could not load ${team.name}'s final-round photo.`)
+        }
+      }))
     } catch (cause) {
       setLoadError((cause as Error).message || 'Could not load teams.')
     }
@@ -959,11 +1252,40 @@ function AdminRound7() {
       setApprovingTeamId('')
     }
   }
+  const rejectFinalRound = async (teamId: string) => {
+    setApprovingTeamId(teamId)
+    setLoadError('')
+    try {
+      await organizerRejectRound7(teamId, sessionStorage.getItem('engquest_admin_username') || '', sessionStorage.getItem('engquest_admin_password') || '')
+      await loadTeams()
+    } catch (cause) {
+      setLoadError((cause as Error).message || 'Could not return the team to the final round.')
+    } finally {
+      setApprovingTeamId('')
+    }
+  }
+  const toggleGameOver = async () => {
+    const nextValue = !gameOver
+    setApprovingTeamId('game-over')
+    setLoadError('')
+    try {
+      const result = await organizerSetGameOver(nextValue, sessionStorage.getItem('engquest_admin_username') || '', sessionStorage.getItem('engquest_admin_password') || '')
+      setGameOver(result.gameOver)
+    } catch (cause) {
+      setLoadError((cause as Error).message || 'Could not update game status.')
+    } finally {
+      setApprovingTeamId('')
+    }
+  }
   useEffect(() => {
     if (sessionStorage.getItem('engquest_role') !== 'admin') return
     void loadTeams()
     const interval = window.setInterval(() => void loadTeams(), 15000)
-    return () => window.clearInterval(interval)
+    return () => {
+      window.clearInterval(interval)
+      Object.values(photoUrlsRef.current).forEach(URL.revokeObjectURL)
+      photoUrlsRef.current = {}
+    }
   }, [])
   if (sessionStorage.getItem('engquest_role') !== 'admin') return <PageIntro eyebrow="Organiser login required" title={<>The control room<br /><i>is restricted.</i></>}><Link className="button button-primary" to="/login?organiser=1">Organiser login <ArrowRight size={17} /></Link></PageIntro>
   const reviewTeams = teams.filter(team => team.round7RequestedAt || team.round7ApprovedAt)
@@ -972,6 +1294,7 @@ function AdminRound7() {
       <div className="admin-bar">
         <div><span className="section-kicker">FINAL PHOTO REVIEW</span><h2>Final round results</h2></div>
         <div className="admin-tools">
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}><span>{gameOver ? 'Game over' : 'Game in progress'}</span><button type="button" role="switch" aria-checked={gameOver} aria-label="Toggle game over for teams without winner approval" disabled={approvingTeamId === 'game-over'} onClick={() => void toggleGameOver()} style={{ width: 48, height: 27, border: 0, borderRadius: 99, padding: 3, background: gameOver ? '#a5b85f' : '#718073', cursor: 'pointer' }}><span style={{ display: 'block', width: 21, height: 21, borderRadius: '50%', background: '#fffdf1', transform: gameOver ? 'translateX(21px)' : 'translateX(0)', transition: 'transform .18s' }} /></button></div>
           <Link className="button button-dark" to="/admin">Team progress</Link>
           <Link className="button button-dark" to="/admin/round3">Round 3 approvals</Link>
           <button className="button button-dark" onClick={() => { sessionStorage.removeItem('engquest_role'); sessionStorage.removeItem('engquest_admin_username'); sessionStorage.removeItem('engquest_admin_password'); window.location.assign('/') }}>Log out</button>
@@ -979,11 +1302,11 @@ function AdminRound7() {
       </div>
       {loadError && <div className="auth-error"><AlertCircle size={18} />{loadError}</div>}
       <div className="admin-table">
-        <div className="table-head final-approval-head"><span>TEAM</span><span>PHOTO REVIEW REQUESTED</span><span>RESULT</span><span /></div>
+        <div className="table-head final-approval-head"><span>TEAM / PHOTO PROOF</span><span>PHOTO REVIEW REQUESTED</span><span>RESULT</span><span /></div>
         {reviewTeams.map(team => <div className="table-row final-approval-row" key={team.id}>
-          <strong>{team.name}<small style={{ display: 'block' }}>{team.id}</small></strong>
+          <strong>{team.name}<small style={{ display: 'block' }}>{team.id}</small>{team.round7PhotoAvailable && photoUrls[team.id] ? <a href={photoUrls[team.id]} target="_blank" rel="noopener noreferrer"><img className="round3-review-photo" src={photoUrls[team.id]} alt={`${team.name} final-round treasure proof`} /></a> : team.round7RequestedAt ? <small>Loading treasure photo…</small> : null}</strong>
           <span>{team.round7RequestedAt ? new Date(team.round7RequestedAt).toLocaleString() : '—'}</span>
-          {team.round7ApprovedAt ? <span className="table-status"><Check size={14} /> Winner approved</span> : <button type="button" className="button button-dark" disabled={approvingTeamId === team.id} onClick={() => void approveFinalRound(team.id)}>{approvingTeamId === team.id ? 'Saving…' : 'Approve winner'}</button>}
+          {team.round7ApprovedAt ? <span className="table-status"><Check size={14} /> Winner approved</span> : <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" className="button button-dark" disabled={approvingTeamId === team.id} onClick={() => void approveFinalRound(team.id)}>{approvingTeamId === team.id ? 'Saving…' : 'Approve winner'}</button><button type="button" className="button button-light" disabled={approvingTeamId === team.id} onClick={() => void rejectFinalRound(team.id)}>{approvingTeamId === team.id ? 'Saving…' : 'Not approve'}</button></div>}
         </div>)}
         {!reviewTeams.length && <p className="form-help" style={{ padding: 20 }}>Teams will appear here after requesting final-round photo review.</p>}
       </div>

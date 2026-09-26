@@ -64,9 +64,7 @@ function Round6Clue() {
           <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
             Open your final map PDF
           </a>
-          <Link className="button button-primary" to="/round/7" style={{ marginTop: '14px' }}>
-            I found the clue — go to Round 7
-          </Link>
+          <Link className="button button-primary" to="/round/7" style={{ marginTop: '14px' }}>I found the clue — go to Round 7</Link>
         </div>
       )}
     </div>

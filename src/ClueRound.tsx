@@ -66,9 +66,7 @@ function ClueRound() {
           <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
             Open your clue PDF
           </a>
-          <Link className="button button-primary" to="/round/5" style={{ marginTop: '14px' }}>
-            I found the clue — go to Round 5
-          </Link>
+          <Link className="button button-primary" to="/round/5" style={{ marginTop: '14px' }}>I found the clue — go to Round 5</Link>
         </div>
       )}
     </div>
