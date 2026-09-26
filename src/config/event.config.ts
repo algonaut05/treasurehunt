@@ -21,7 +21,7 @@ export const eventConfig = {
     { number: '03', title: 'Discover', label: 'The location', description: 'Take the clue beyond the screen. The next answer is somewhere on campus.' },
     { number: '04', title: 'Clue', label: 'The extra clue', description: 'Enter the password to unlock a PDF clue.' },
     { number: '05', title: 'Track', label: 'The second location', description: 'Follow the new clue to the next campus location.' },
-    { number: '06', title: 'Unveil', label: 'The final clue', description: 'Unlock the final PDF map with your 4-digit code.' },
+    { number: '06', title: 'Unveil', label: 'The final clue', description: 'Navigate through 25 cities, meet the Wayfinder to collect clue pairs, and solve the final 25-digit key to unlock the clue.' },
     { number: '07', title: 'Final quest', label: 'The last light', description: 'The remaining teams race to the final location.' },
   ],
 } as const

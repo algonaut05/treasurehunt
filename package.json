@@ -14,6 +14,7 @@
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "firebase-admin": "^14.5.0",
+    "leaflet": "^1.9.4",
     "lottie-web": "^5.13.0",
     "lucide-react": "latest",
     "motion": "latest",
@@ -23,6 +24,7 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.22",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "gh-pages": "^6.3.0",

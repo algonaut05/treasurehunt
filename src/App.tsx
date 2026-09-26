@@ -728,6 +728,13 @@ function Round2ArchiveChallenge() {
 function RoundPage({ round }: { round: number }) {
   const config = eventConfig.rounds[round - 1]
   const clueRound = round % 2 === 0
+  if (round === 6) {
+    return (
+      <section className="inner-page section-shell round6-route">
+        <Round6Clue />
+      </section>
+    )
+  }
   return (
     <PageIntro eyebrow={`${clueRound ? 'Clue round' : 'Main round'} ${config.number} / ${config.label}`} title={<>{config.title}<br /><i>{round === 7 ? 'starts now.' : 'the next clue.'}</i></>}>
       <div className={`round-stage stage-${round} ${clueRound ? 'round-kind-clue' : 'round-kind-main'}`}>

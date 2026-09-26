@@ -1,5 +1,7 @@
 const base = import.meta.env.BASE_URL;
 
+export { base };
+
 export const clueMap: Record<string, string> = {
   '7Q2': `${base}clues/7Q2.pdf`,
   'M8A': `${base}clues/M8A.pdf`,
