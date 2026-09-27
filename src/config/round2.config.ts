@@ -1,9 +1,7 @@
 export interface Round2Archive {
   id: number
   password: string
-  fileName: string
   title: string
-  fileUrl: string
 }
 
 export const ROUND1_VALID_CODES = new Set([
@@ -18,22 +16,22 @@ export const ROUND1_VALID_CODES = new Set([
   '0001100111', '1111100100', '1111101111',
 ]);
 
-export const ROUND2_PASSWORDS: Record<string, { id: number; fileName: string; title: string }> = {
-  'A7K2M': { id: 1,  fileName: 'archive_01.pdf', title: 'Archive Clue 01' },
-  'B4R8Q': { id: 2,  fileName: 'archive_02.pdf', title: 'Archive Clue 02' },
-  'C9T3L': { id: 3,  fileName: 'archive_03.pdf', title: 'Archive Clue 03' },
-  'D5W1N': { id: 4,  fileName: 'archive_04.pdf', title: 'Archive Clue 04' },
-  'E8P4X': { id: 5,  fileName: 'archive_05.pdf', title: 'Archive Clue 05' },
-  'F2H7K': { id: 6,  fileName: 'archive_06.pdf', title: 'Archive Clue 06' },
-  'G6M3R': { id: 7,  fileName: 'archive_07.pdf', title: 'Archive Clue 07' },
-  'J4Q9T': { id: 8,  fileName: 'archive_08.pdf', title: 'Archive Clue 08' },
-  'K8L2V': { id: 9,  fileName: 'archive_09.pdf', title: 'Archive Clue 09' },
-  'M5N7C': { id: 10, fileName: 'archive_10.pdf', title: 'Archive Clue 10' },
-  'P3R6Y': { id: 11, fileName: 'archive_11.pdf', title: 'Archive Clue 11' },
-  'Q7T4B': { id: 12, fileName: 'archive_12.pdf', title: 'Archive Clue 12' },
-  'R2V8H': { id: 13, fileName: 'archive_13.pdf', title: 'Archive Clue 13' },
-  'S9K5D': { id: 14, fileName: 'archive_14.pdf', title: 'Archive Clue 14' },
-  'T4X6M': { id: 15, fileName: 'archive_15.pdf', title: 'Archive Clue 15' },
+export const ROUND2_PASSWORDS: Record<string, { id: number; title: string }> = {
+  'A7K2M': { id: 1, title: 'Archive Clue 01' },
+  'B4R8Q': { id: 2, title: 'Archive Clue 02' },
+  'C9T3L': { id: 3, title: 'Archive Clue 03' },
+  'D5W1N': { id: 4, title: 'Archive Clue 04' },
+  'E8P4X': { id: 5, title: 'Archive Clue 05' },
+  'F2H7K': { id: 6, title: 'Archive Clue 06' },
+  'G6M3R': { id: 7, title: 'Archive Clue 07' },
+  'J4Q9T': { id: 8, title: 'Archive Clue 08' },
+  'K8L2V': { id: 9, title: 'Archive Clue 09' },
+  'M5N7C': { id: 10, title: 'Archive Clue 10' },
+  'P3R6Y': { id: 11, title: 'Archive Clue 11' },
+  'Q7T4B': { id: 12, title: 'Archive Clue 12' },
+  'R2V8H': { id: 13, title: 'Archive Clue 13' },
+  'S9K5D': { id: 14, title: 'Archive Clue 14' },
+  'T4X6M': { id: 15, title: 'Archive Clue 15' },
 }
 
 export interface ValidationResult {
@@ -74,9 +72,7 @@ export function validateRound2Credentials(rawCode: string, rawPassword: string):
     archive: {
       id: archiveMeta.id,
       password,
-      fileName: archiveMeta.fileName,
       title: archiveMeta.title,
-      fileUrl: `/pdfs/${archiveMeta.fileName}`,
     },
   }
 }

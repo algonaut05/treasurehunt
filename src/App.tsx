@@ -40,7 +40,6 @@ function App() {
 }
 
 function GameOverNotice() {
-  const location = useLocation()
   const [visible, setVisible] = useState(false)
   const [countdown, setCountdown] = useState(5)
   useEffect(() => {
@@ -55,9 +54,8 @@ function GameOverNotice() {
       } catch { if (!cancelled) setVisible(false) }
     }
     void checkGameStatus()
-    const interval = window.setInterval(() => void checkGameStatus(), 10000)
-    return () => { cancelled = true; window.clearInterval(interval) }
-  }, [location.pathname])
+    return () => { cancelled = true }
+  }, [])
   if (!visible) return null
   return createPortal(<GameOverCountdown countdown={countdown} setCountdown={setCountdown} />, document.body)
 }
@@ -598,6 +596,8 @@ function Round2ArchiveChallenge() {
   const [password, setPassword]     = useState('')
   const [error, setError]           = useState<string | null>(null)
   const [archive, setArchive]       = useState<Round2Archive | null>(null)
+  const [nextClue, setNextClue]     = useState('')
+  const [riddleRevealed, setRiddleRevealed] = useState(false)
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -616,7 +616,7 @@ function Round2ArchiveChallenge() {
   }
 
   const handleLock = () => {
-    setArchive(null); setError(null); setRound1Code(''); setPassword('')
+    setArchive(null); setError(null); setRound1Code(''); setPassword(''); setNextClue(''); setRiddleRevealed(false)
   }
 
   // ── Unlocked view ──────────────────────────────────────────────────────────
@@ -626,28 +626,34 @@ function Round2ArchiveChallenge() {
         <div className="archive-banner">
           <div>
             <div className="archive-badge"><Check size={14} /> Access Authorized</div>
-            <h3>{archive.title}</h3>
-            <div className="archive-meta">
-              Key: <strong>{archive.password}</strong> &bull; File: <code>{archive.fileName}</code>
-            </div>
+            <h3>Round 2 clue unlocked</h3>
+            <div className="archive-meta">Organizer key: <strong>{archive.password}</strong></div>
           </div>
           <button className="btn-archive-action btn-relock" onClick={handleLock}>
             <RotateCcw size={15} /> Lock / Change Credentials
           </button>
         </div>
 
-        <div className="archive-btn-group">
-          <a className="btn-archive-action btn-archive-highlight" href={archive.fileUrl} download={archive.fileName}>
-            <Download size={16} /> Download Clue PDF ({archive.fileName})
-          </a>
-          <a className="btn-archive-action" href={archive.fileUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink size={16} /> Open in New Tab
-          </a>
-        </div>
-
-        <div className="pdf-viewer-shell">
-          <iframe src={`${archive.fileUrl}#toolbar=1`} title={archive.title} className="pdf-frame" />
-        </div>
+        <section className="archive-next-clue" aria-labelledby="archive-next-clue-title">
+          <h3 id="archive-next-clue-title">Another clue is waiting</h3>
+          <p>Inspect the clue below and enter the hidden word to reveal the next riddle.</p>
+          <iframe
+            src="/gameasset/cluefor2.html"
+            title="Round 2 additional clue"
+            style={{ display: 'block', width: '100%', minHeight: 560, border: '1px solid rgba(255,255,255,.14)', borderRadius: 12, background: '#090b0f' }}
+          />
+          <form className="credential-form" onSubmit={e => { e.preventDefault(); setRiddleRevealed(nextClue.trim().toUpperCase() === 'MIRROR') }}>
+            <div className="credential-field">
+              <label htmlFor="round2-next-clue">What is the hidden clue?</label>
+              <input id="round2-next-clue" value={nextClue} onChange={e => { setNextClue(e.target.value); setRiddleRevealed(false) }} autoComplete="off" />
+            </div>
+            <button type="submit" className="auth-submit"><Eye size={16} /> Reveal Riddle</button>
+          </form>
+          {riddleRevealed && <div className="auth-note" role="status" style={{ marginTop: 16, padding: 16, whiteSpace: 'normal' }}>
+            46 69 6e 64 20 74 68 65 20 70 6c 61 63 65 20 77 68 65 72 65 20 69 64 65 61 73 20 67 61 74 68 65 72 20 62 75 74 20 63 6c 61 73 73 72 6f 6f 6d 73 20 64 6f 20 6e 6f 74 2e 20 53 65 65 6b 20 74 68 65 20 43 6f 6e 76 65 6e 74 69 6f 6e 20 43 65 6e 74 72 65 2e
+          </div>}
+          {nextClue.trim() && !riddleRevealed && nextClue.trim().toUpperCase() !== 'MIRROR' && <p className="auth-error" role="alert">That clue does not match. Inspect the SVG source for the hidden word.</p>}
+        </section>
 
         <div className="archive-footer-actions">
           <span className="auth-note">
@@ -805,8 +811,7 @@ function Round3Status() {
       }
     }
     void refreshResult()
-    const interval = window.setInterval(() => void refreshResult(), 10000)
-    return () => { cancelled = true; window.clearInterval(interval) }
+    return () => { cancelled = true }
   }, [refreshToken])
 
   const submitReviewRequest = async () => {
@@ -824,6 +829,7 @@ function Round3Status() {
       setRejectedAt(null)
       setPhoto(null)
       setPhotoPreview('')
+      setRefreshToken(value => value + 1)
     } catch (cause) {
       setStatusError((cause as Error).message || 'Could not request Round 3 review.')
     } finally {
@@ -869,6 +875,7 @@ function Round7Challenge() {
     const password = sessionStorage.getItem('engquest_team_password')
     if (!teamId || !password) return
     let cancelled = false
+    let interval: number | undefined
     const refresh = async () => {
       setRefreshing(true)
       try {
@@ -878,6 +885,7 @@ function Round7Challenge() {
           setRejectedAt(result.team.round7RejectedAt || null)
           const approval = result.team.round7ApprovedAt || null
           setApprovedAt(approval)
+          if (approval && interval !== undefined) window.clearInterval(interval)
           if (approval && !hasShownCelebration.current) {
             hasShownCelebration.current = true
             setShowCelebration(true)
@@ -891,7 +899,7 @@ function Round7Challenge() {
       }
     }
     void refresh()
-    const interval = window.setInterval(() => void refresh(), 10000)
+    interval = window.setInterval(() => void refresh(), 10000)
     return () => { cancelled = true; window.clearInterval(interval) }
   }, [refreshToken])
 
@@ -955,7 +963,6 @@ function Round7Challenge() {
       <h2>You found<br /><i>the treasure.</i></h2>
       <p>You’re the winner! The organisers approved your final-round photo.</p>
       <img className="quest-chest-art winner-treasure-chest" src={treasureChestImage} alt="" />
-      <div className="winner-refresh">{refreshButton}</div>
     </div>
     {showCelebration && createPortal(<div className="treasure-celebration" role="presentation"><div className="treasure-celebration-animation" ref={celebrationRef} /></div>, document.body)}
   </>
@@ -1040,17 +1047,13 @@ function Admin() {
   useEffect(() => {
     if (sessionStorage.getItem('engquest_role') !== 'admin') return
     void loadTeams()
-    const interval = window.setInterval(() => void loadTeams(), 15000)
-    const onFocus = () => void loadTeams()
-    window.addEventListener('focus', onFocus)
-    return () => { window.clearInterval(interval); window.removeEventListener('focus', onFocus) }
   }, [])
   if (sessionStorage.getItem('engquest_role') !== 'admin') return <PageIntro eyebrow="Organiser login required" title={<>The control room<br /><i>is restricted.</i></>}><Link className="button button-primary" to="/login?organiser=1">Organiser login <ArrowRight size={17} /></Link></PageIntro>
   const visibleTeams = teams.filter(team => `${team.name} ${team.id} ${team.members.map(member => member.name).join(' ')}`.toLowerCase().includes(search.toLowerCase()))
   return (
     <PageIntro eyebrow="Admin / Control room" title={<>Watch the trail<br /><i>unfold.</i></>}>
       <div className="admin-bar">
-        <div><span className="section-kicker">LIVE EVENT VIEW</span><h2>Team progress</h2></div>
+        <div><span className="section-kicker">MANUAL REFRESH</span><h2>Team progress</h2></div>
         <div className="admin-tools"><label className="admin-search"><Search size={16} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search teams" aria-label="Search teams" /></label><Link className="button button-dark" to="/admin/round3">Round 3 approvals</Link><Link className="button button-dark" to="/admin/round7">Final round approvals</Link><button className="button button-dark" onClick={() => void loadTeams()} disabled={loading}><RotateCcw size={15} /> {loading ? 'Refreshing' : 'Refresh'}</button><button className="button button-dark" onClick={() => { sessionStorage.removeItem('engquest_role'); sessionStorage.removeItem('engquest_admin_username'); sessionStorage.removeItem('engquest_admin_password'); window.location.assign('/') }}>Log out</button></div>
       </div>
       {loadError && <div className="auth-error"><AlertCircle size={18} />{loadError}</div>}
@@ -1081,6 +1084,7 @@ function AdminRound3() {
   const photoRequestKeys = useRef<Record<string, string>>({})
   const [cluePasswords, setCluePasswords] = useState<Record<string, string>>({})
   const [loadError, setLoadError] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
   const [approvingTeamId, setApprovingTeamId] = useState('')
   const [slotsFull, setSlotsFull] = useState(false)
   const loadTeams = async () => {
@@ -1164,12 +1168,15 @@ function AdminRound3() {
       setApprovingTeamId('')
     }
   }
+  const refreshTeams = async () => {
+    setRefreshing(true)
+    await loadTeams()
+    setRefreshing(false)
+  }
   useEffect(() => {
     if (sessionStorage.getItem('engquest_role') !== 'admin') return
     void loadTeams()
-    const interval = window.setInterval(() => void loadTeams(), 15000)
     return () => {
-      window.clearInterval(interval)
       Object.values(photoUrlsRef.current).forEach(URL.revokeObjectURL)
       photoUrlsRef.current = {}
     }
@@ -1184,6 +1191,7 @@ function AdminRound3() {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}><span>{slotsFull ? 'Next-round slots full' : 'Next-round slots open'}</span><button type="button" role="switch" aria-checked={slotsFull} aria-label="Toggle whether the 10 next-round slots are full" disabled={approvingTeamId === 'slots'} onClick={() => void toggleSlotsFull()} style={{ width: 48, height: 27, border: 0, borderRadius: 99, padding: 3, background: slotsFull ? '#a5b85f' : '#718073', cursor: 'pointer' }}><span style={{ display: 'block', width: 21, height: 21, borderRadius: '50%', background: '#fffdf1', transform: slotsFull ? 'translateX(21px)' : 'translateX(0)', transition: 'transform .18s' }} /></button></div>
           <Link className="button button-dark" to="/admin">Team progress</Link>
           <Link className="button button-dark" to="/admin/round7">Final round approvals</Link>
+          <button className="button button-dark" onClick={() => void refreshTeams()} disabled={refreshing}><RotateCcw size={15} /> {refreshing ? 'Refreshing' : 'Refresh'}</button>
           <button className="button button-dark" onClick={() => { sessionStorage.removeItem('engquest_role'); sessionStorage.removeItem('engquest_admin_username'); sessionStorage.removeItem('engquest_admin_password'); window.location.assign('/') }}>Log out</button>
         </div>
       </div>
@@ -1213,6 +1221,7 @@ function AdminRound7() {
   const [loadError, setLoadError] = useState('')
   const [approvingTeamId, setApprovingTeamId] = useState('')
   const [gameOver, setGameOver] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const loadTeams = async () => {
     try {
       const result = await organizerTeams(sessionStorage.getItem('engquest_admin_username') || '', sessionStorage.getItem('engquest_admin_password') || '')
@@ -1284,12 +1293,15 @@ function AdminRound7() {
       setApprovingTeamId('')
     }
   }
+  const refreshTeams = async () => {
+    setRefreshing(true)
+    await loadTeams()
+    setRefreshing(false)
+  }
   useEffect(() => {
     if (sessionStorage.getItem('engquest_role') !== 'admin') return
     void loadTeams()
-    const interval = window.setInterval(() => void loadTeams(), 15000)
     return () => {
-      window.clearInterval(interval)
       Object.values(photoUrlsRef.current).forEach(URL.revokeObjectURL)
       photoUrlsRef.current = {}
     }
@@ -1304,6 +1316,7 @@ function AdminRound7() {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}><span>{gameOver ? 'Game over' : 'Game in progress'}</span><button type="button" role="switch" aria-checked={gameOver} aria-label="Toggle game over for teams without winner approval" disabled={approvingTeamId === 'game-over'} onClick={() => void toggleGameOver()} style={{ width: 48, height: 27, border: 0, borderRadius: 99, padding: 3, background: gameOver ? '#a5b85f' : '#718073', cursor: 'pointer' }}><span style={{ display: 'block', width: 21, height: 21, borderRadius: '50%', background: '#fffdf1', transform: gameOver ? 'translateX(21px)' : 'translateX(0)', transition: 'transform .18s' }} /></button></div>
           <Link className="button button-dark" to="/admin">Team progress</Link>
           <Link className="button button-dark" to="/admin/round3">Round 3 approvals</Link>
+          <button className="button button-dark" onClick={() => void refreshTeams()} disabled={refreshing}><RotateCcw size={15} /> {refreshing ? 'Refreshing' : 'Refresh'}</button>
           <button className="button button-dark" onClick={() => { sessionStorage.removeItem('engquest_role'); sessionStorage.removeItem('engquest_admin_username'); sessionStorage.removeItem('engquest_admin_password'); window.location.assign('/') }}>Log out</button>
         </div>
       </div>

@@ -9,7 +9,13 @@
     "server": "node --env-file=.env.local server/index.js",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "db:backup:firestore": "node --env-file=.env.local scripts/backup-firestore.mjs",
+    "db:import:postgres": "node --env-file=.env.local scripts/import-firestore-backup-to-postgres.mjs",
+    "db:import:docker": "node --env-file=.env.local scripts/import-firestore-backup-to-docker-postgres.mjs",
+    "db:schema:docker": "node --env-file=.env.local scripts/apply-docker-postgres-schema.mjs",
+    "db:smoke:docker": "node --env-file=.env.local scripts/smoke-postgres-backend.mjs",
+    "db:use:docker": "node --env-file=.env.local scripts/use-docker-postgres.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -18,6 +24,7 @@
     "lottie-web": "^5.13.0",
     "lucide-react": "latest",
     "motion": "latest",
+    "pg": "^8.23.0",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "latest",

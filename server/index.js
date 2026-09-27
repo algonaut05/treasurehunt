@@ -3,20 +3,36 @@ import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { extname, resolve, sep } from 'node:path'
 import { cert, initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
+import pg from 'pg'
+import { createPostgresFirestoreStore } from './postgres-store.js'
 
 const port = Number(process.env.PORT || 3001)
 const projectId = process.env.FIREBASE_PROJECT_ID
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT
+const databaseBackend = (process.env.DATABASE_BACKEND || 'firestore').toLowerCase()
 const adminUsername = process.env.ADMIN_USERNAME
 const adminPassword = process.env.ADMIN_PASSWORD
 
-if (!projectId || !serviceAccountPath || !adminUsername || !adminPassword) {
-  throw new Error('Set FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT, ADMIN_USERNAME, and ADMIN_PASSWORD in .env.local.')
+if (!adminUsername || !adminPassword) {
+  throw new Error('Set ADMIN_USERNAME and ADMIN_PASSWORD in .env.local.')
 }
 
-const account = JSON.parse(await readFile(resolve(serviceAccountPath), 'utf8'))
-initializeApp({ credential: cert(account), projectId })
-const db = getFirestore()
+let db
+if (databaseBackend === 'postgres') {
+  if (!process.env.DATABASE_URL) throw new Error('Set DATABASE_URL when DATABASE_BACKEND=postgres.')
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
+  await pool.query('SELECT 1')
+  db = createPostgresFirestoreStore(pool)
+} else if (databaseBackend === 'firestore') {
+  if (!projectId || !serviceAccountPath) {
+    throw new Error('Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT in .env.local.')
+  }
+  const account = JSON.parse(await readFile(resolve(serviceAccountPath), 'utf8'))
+  initializeApp({ credential: cert(account), projectId })
+  db = getFirestore()
+} else {
+  throw new Error('DATABASE_BACKEND must be either firestore or postgres.')
+}
 const round3PhotoDirectory = resolve('local-data', 'round3-photos')
 const round7PhotoDirectory = resolve('local-data', 'round7-photos')
 const mimeTypes = { '.css': 'text/css', '.html': 'text/html', '.ico': 'image/x-icon', '.js': 'text/javascript', '.json': 'application/json', '.pdf': 'application/pdf', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.woff2': 'font/woff2' }
